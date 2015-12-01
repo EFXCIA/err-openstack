@@ -1,0 +1,9 @@
+[Core]
+Name = Openstack
+Module = openstack
+
+[Documentation]
+Description = List and show VMs in Openstack projects
+
+[Python]
+Version = 3
