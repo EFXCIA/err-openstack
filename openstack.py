@@ -51,10 +51,9 @@ class Openstack(BotPlugin):
             self.set_config(mess, list(configs)[0])
 
         if self.USER_CONF.get(mess.frm.person):
-            self.send(mess.frm,
-                      '/me Openstack project: {}'
-                      .format(self.USER_CONF[mess.frm.person]['project_id']),
-                      message_type=mess.type)
+            project_id = self.USER_CONF[mess.frm.person]['project_id']
+            message = '/me Openstack project: {}'.format(project_id)
+            self.send(mess.frm, message, message_type=mess.type)
         else:
             raise Exception('You have not selected a project. Run "nova '
                             'project list" to see a list of available '
@@ -110,9 +109,9 @@ class Openstack(BotPlugin):
         config = self.read_config_file(config_file)
         self.USER_CONF[mess.frm.person] = dict(self.OS_AUTH, **config)
 
+        message = '/me Selected Openstack project: {} for {}'
         self.send(mess.frm,
-                  '/me Selected Openstack project: {} for {}'
-                  .format(project_name, mess.frm.person),
+                  message.format(project_name, mess.frm.person),
                   message_type=mess.type)
 
     @botcmd(split_args_with=None)
@@ -120,8 +119,9 @@ class Openstack(BotPlugin):
         '''nova project list/set'''
         if not args:
             self.check_config(mess)
-            return ('Current project: {}'
-                    .format(self.USER_CONF[mess.frm.person]['project_id']))
+            project_id = self.USER_CONF[mess.frm.person]['project_id']
+            return 'Current project: {}'.format(project_id)
+
         if args[0] == 'list':
             return '\n'.join(self.get_config_files())
         elif args[0] == 'set':
@@ -131,10 +131,9 @@ class Openstack(BotPlugin):
     def nova_list(self, mess, args):
         '''List VMs'''
         self.check_config(mess)
-        self.send(mess.frm,
-                  '/me is getting the list of VMs for project {}'
-                  .format(self.USER_CONF[mess.frm.person]['project_id']),
-                  message_type=mess.type)
+        message = '/me is getting the list of VMs for project {}'
+        project_id = self.USER_CONF[mess.frm.person]['project_id']
+        self.send(mess.frm, message.format(project_id), message_type=mess.type)
 
         nova_client = Client(**self.USER_CONF[mess.frm.person])
         vms = nova_client.servers.list()
@@ -155,10 +154,10 @@ class Openstack(BotPlugin):
     def nova_show(self, mess, vm):
         '''Show VM details'''
         self.check_config(mess)
-        self.send(mess.frm,
-                  '/me is getting the list of VMs for project {}'
-                  .format(self.USER_CONF[mess.frm.person]['project_id']),
-                  message_type=mess.type)
+        message = '/me is getting the list of VMs for project {}'
+        project_id = self.USER_CONF[mess.frm.person]['project_id']
+        self.send(mess.frm, message.format(project_id), message_type=mess.type)
+
         nova_client = Client(**self.USER_CONF[mess.frm.person])
         vm = nova_client.servers.get(vm)
 
