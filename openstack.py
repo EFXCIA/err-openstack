@@ -93,9 +93,10 @@ class Openstack(BotPlugin):
         if not configs:
             raise Exception('No openrc files found at: {}'.format(search_path))
 
-        for c in conf:
-            contents = self.read_config_file(c)
-            result[contents['project_id']] = c
+        result = {}
+        for config in configs:
+            contents = self.read_config_file(config)
+            result[contents['project_id']] = config
 
         return result
 
