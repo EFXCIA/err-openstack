@@ -29,8 +29,12 @@ class Openstack(BotPlugin):
 
     This module is designed to be similar to using the nova CLI tool.
     '''
-    OS_ARGS = ['username', 'api_key', 'auth_url', 'project_id']
-    OS_ATTRS = ['OS_USERNAME', 'OS_PASSWORD', 'OS_AUTH_URL', 'OS_TENANT_NAME']
+    VAR_TO_ARG = {
+        'OS_USERNAME': 'username',
+        'OS_PASSWORD': 'api_key',
+        'OS_AUTH_URL': 'auth_url',
+        'OS_TENANT_NAME': 'project_id'
+    }
     OS_AUTH = {'version': 2}
     USER_CONF = {}
 
@@ -63,15 +67,14 @@ class Openstack(BotPlugin):
         :returns: dinctionary of configuration items
         '''
         result = {}
-        reg = re.compile('export (?P<name>\w+)(\=(?P<value>.+))*')
-        for line in open(os.path.join(CONFIG_DIR, config_file)):
-            match = reg.match(line)
-            if match:
-                var = match.group('name')
-                val = match.group('value')
-                if var in self.OS_ATTRS:
-                    key = dict(zip(self.OS_ATTRS, self.OS_ARGS)).get(var)
-                    result[key] = val.strip('"').strip('\'')
+        for line in lines:
+            try:
+                var, value = reg.match(line).groups()
+                arg = self.VAR_TO_ARG[var]
+            except (KeyError, AttributeError):
+                pass
+            else:
+                result[arg] = value.strip('\'"')  # unquote the value
         return result
 
     def get_config_files(self):
