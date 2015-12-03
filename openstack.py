@@ -181,33 +181,32 @@ class Openstack(BotPlugin):
 
         return '/code {}'.format(pt)
 
-    def get_image(self, mess, image_id):
-        '''get the image name from the ID
-
-        :param mess: Errbot message object
-        :param image_id: id of openstack image
-        :returns name: name of image
-        '''
+    def _get_name_from_id(self, mess, type_, id_):
+        # Return the name of a nova client resource for a given person given
+        # the type and id of the resource.
         try:
             nova_client = Client(**self.USER_CONF[mess.frm.person])
-            image = nova_client.images.get(image_id)
-            name = image.name
+            resource = getattr(nova_client, type_)[id_]
+            return resource.name
         except Exception:
-            name = 'Error fetching name'
-        return name
+            return 'Error fetching name'
+
+    def get_image(self, mess, image_id):
+        '''Get the image name from the ID
+
+        :param mess: Errbot message object
+        :param str image_id: id of openstack image
+        :return: name of image
+        :rtype: str
+        '''
+        return self._get_name_from_id(mess, 'images', image_id)
 
     def get_flavor(self, mess, flavor_id):
-        '''get the flavor name from the ID
+        '''Get the flavor name from the ID
 
         :param mess: Errbot message object
-        :param flavor_id: id of openstack image
-        :returns name: name of image
+        :param str flavor_id: id of openstack image
+        :return: name of image
+        :rtype: str
         '''
-        try:
-            nova_client = Client(**self.USER_CONF[mess.frm.person])
-            flavor = nova_client.flavors.get(flavor_id)
-            name = flavor.name
-        except Exception:
-            name = 'Error fetching name'
-        return name
-
+        return self._get_name_from_id(mess, 'flavors', flavor_id)
