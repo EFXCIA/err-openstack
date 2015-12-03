@@ -12,12 +12,14 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
+import glob
+import os
+import re
+
 from errbot import BotPlugin, botcmd, arg_botcmd
 from novaclient.client import Client
 from prettytable import PrettyTable
-import os
-import glob
-import re
+
 
 CONFIG_DIR = os.path.expanduser('~/.nova')
 
