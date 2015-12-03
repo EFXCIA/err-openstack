@@ -16,9 +16,9 @@ Available commands for Openstack
 Requirements
 ------------
 
-Python ~> 3.4
-python-novaclient ~> 2.31.0
-prettytable ~> 0.7.2
+ - Python ~> 3.4
+ - python-novaclient ~> 2.31.0
+ - prettytable ~> 0.7.2
 
 
 Installation
