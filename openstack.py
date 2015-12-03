@@ -45,9 +45,9 @@ class Openstack(BotPlugin):
         :param mess: Errbot message object
         '''
         configs = self.get_config_files()
-        if len(configs.keys()) == 1:
+        if len(configs) == 1:
             # there is only one project, so auto-select it
-            self.set_config(mess, list(configs.keys())[0])
+            self.set_config(mess, list(configs)[0])
 
         if self.USER_CONF.get(mess.frm.person):
             self.send(mess.frm,
@@ -66,6 +66,10 @@ class Openstack(BotPlugin):
         :param config_file: name of openrc config file
         :returns: dinctionary of configuration items
         '''
+        with open(os.path.join(CONFIG_DIR, config_file)) as f:
+            lines = f.read().splitlines()  # drop newline chars
+
+        reg = re.compile(r'export (?P<var>\w+)(?:=(?P<value>.+))*')
         result = {}
         for line in lines:
             try:
@@ -83,11 +87,10 @@ class Openstack(BotPlugin):
         :returns: result: dictionary of project name as key and config path as
                           value
         '''
-        result = {}
-        conf = glob.glob(os.path.join(CONFIG_DIR, '*-openrc.sh'))
-        if len(conf) < 1:
-            raise Exception('No openrc files found at: {}'
-                            .format(os.path.join(CONFIG_DIR, '*-openrc.sh')))
+        search_path = os.path.join(CONFIG_DIR, '*-openrc.sh'))
+        configs = glob.glob(search_path)
+        if not configs:
+            raise Exception('No openrc files found at: {}'.format(search_path))
 
         for c in conf:
             contents = self.read_config_file(c)
@@ -102,10 +105,8 @@ class Openstack(BotPlugin):
         :param project_name: name of openstack project
         '''
         config_file = self.get_config_files()[project_name]
-        self.USER_CONF[mess.frm.person] = self.OS_AUTH.copy()
-        self.USER_CONF[mess.frm.person].update(
-                self.read_config_file(config_file)
-            )
+        config = self.read_config_file(config_file)
+        self.USER_CONF[mess.frm.person] = dict(self.OS_AUTH, **config)
 
         self.send(mess.frm,
                   '/me Selected Openstack project: {} for {}'
@@ -115,12 +116,12 @@ class Openstack(BotPlugin):
     @botcmd(split_args_with=None)
     def nova_project(self, mess, args):
         '''nova project list/set'''
-        if len(args) == 0:
+        if not args:
             self.check_config(mess)
             return ('Current project: {}'
                     .format(self.USER_CONF[mess.frm.person]['project_id']))
         if args[0] == 'list':
-            return '\n'.join([k for k in self.get_config_files().keys()])
+            return '\n'.join(self.get_config_files())
         elif args[0] == 'set':
             self.set_config(mess, args[1])
 
@@ -140,8 +141,8 @@ class Openstack(BotPlugin):
         pt.align = 'l'
 
         for vm in vms:
-            for key, val in vm.networks.items():
-                network = '{}: {}'.format(key, ', '.join(val))
+            for key, vals in vm.networks.items():
+                network = '{}: {}'.format(key, ', '.join(vals))
 
             pt.add_row([vm.id, vm.name, vm.status, network])
 
