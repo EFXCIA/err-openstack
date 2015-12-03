@@ -39,8 +39,9 @@ class Openstack(BotPlugin):
     USER_CONF = {}
 
     def check_config(self, mess):
-        '''Check to see if the user has selected a project. If there is only
-        one project, it will be selected automatically
+        '''Check to see if the user has selected a project.
+
+        If there is only one project, it will be selected automatically.
 
         :param mess: Errbot message object
         '''
@@ -63,8 +64,9 @@ class Openstack(BotPlugin):
     def read_config_file(self, config_file):
         '''read contents of config file into a dict of key-> val pairs
 
-        :param config_file: name of openrc config file
-        :returns: dinctionary of configuration items
+        :param str config_file: name of openrc config file
+        :return: configuration key-values
+        :rtype: dict
         '''
         with open(os.path.join(CONFIG_DIR, config_file)) as f:
             lines = f.read().splitlines()  # drop newline chars
@@ -84,8 +86,8 @@ class Openstack(BotPlugin):
     def get_config_files(self):
         '''Get openrc config(s)
 
-        :returns: result: dictionary of project name as key and config path as
-                          value
+        :return: config paths by project name
+        :rtype: dict
         '''
         search_path = os.path.join(CONFIG_DIR, '*-openrc.sh'))
         configs = glob.glob(search_path)
@@ -99,10 +101,10 @@ class Openstack(BotPlugin):
         return result
 
     def set_config(self, mess, project_name):
-        '''Sets config to selected openrc file
+        '''Sets config to selected openrc file.
 
         :param mess: Errbot message object
-        :param project_name: name of openstack project
+        :param str project_name: name of openstack project
         '''
         config_file = self.get_config_files()[project_name]
         config = self.read_config_file(config_file)
