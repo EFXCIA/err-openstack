@@ -144,11 +144,14 @@ class Openstack(BotPlugin):
         pt = PrettyTable(['ID', 'Name', 'Status', 'Networks'])
         pt.align = 'l'
 
+        network = '{}: {}'.format
+        csv = ', '.join
         for vm in vms:
-            for key, vals in vm.networks.items():
-                network = '{}: {}'.format(key, ', '.join(vals))
-
-            pt.add_row([vm.id, vm.name, vm.status, network])
+            networks = []
+            for name, ips in vm.networks.items():
+                networks.append(network(name, csv(ips)))
+            all_networks = '; '.join(networks)
+            pt.add_row([vm.id, vm.name, vm.status, all_networks])
 
         return '/code {}'.format(pt)
 
