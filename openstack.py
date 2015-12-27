@@ -88,7 +88,7 @@ class Openstack(BotPlugin):
         :return: config paths by project name
         :rtype: dict
         '''
-        search_path = os.path.join(CONFIG_DIR, '*-openrc.sh'))
+        search_path = os.path.join(CONFIG_DIR, '*-openrc.sh')
         configs = glob.glob(search_path)
         if not configs:
             raise Exception('No openrc files found at: {}'.format(search_path))
