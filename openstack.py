@@ -106,11 +106,13 @@ class Openstack(BotPlugin):
         :param mess: Errbot message object
         :param str project_name: name of openstack project
         '''
-        config_file = self.get_config_files()[project_name]
-        config = self.read_config_file(config_file)
-        self.USER_CONF[mess.frm.person] = dict(self.OS_AUTH, **config)
-
-        message = '/me Selected Openstack project: {} for {}'
+        config_file = self.get_config_files().get(project_name)
+        if config_file:
+            config = self.read_config_file(config_file)
+            self.USER_CONF[mess.frm.person] = dict(self.OS_AUTH, **config)
+            message = '/me Selected Openstack project: {} for {}'
+        else:
+            message = '/me No such project {!r}'.format(project_name)
         self.send(mess.frm,
                   message.format(project_name, mess.frm.person),
                   message_type=mess.type)
