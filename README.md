@@ -9,9 +9,9 @@ Available commands for nova
 
 Available commands for Openstack
 
-• !nova list - List VMs
-• !nova project - nova project list/set
-• !nova show - usage: nova_show [-h] vm
+ * `!nova list` - List VMs
+ * `!nova project` - nova project list/set
+ * `!nova show` - usage: nova_show [-h] vm
 
 Requirements
 ------------
