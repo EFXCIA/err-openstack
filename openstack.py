@@ -27,8 +27,9 @@ class Openstack(BotPlugin):
 
     This module is designed to be similar to using the nova CLI tool.
     '''
-    OS_ARGS = ['username', 'api_key', 'auth_url', 'project_id']
-    OS_ATTRS = ['OS_USERNAME', 'OS_PASSWORD', 'OS_AUTH_URL', 'OS_TENANT_NAME']
+    OS_ARGS = ['username', 'api_key', 'auth_url', 'project_id', 'insecure']
+    OS_ATTRS = ['OS_USERNAME', 'OS_PASSWORD', 'OS_AUTH_URL', 'OS_TENANT_NAME',
+                'NOVACLIENT_INSECURE']
     OS_AUTH = {'version': 2}
     USER_CONF = {}
 
@@ -39,9 +40,9 @@ class Openstack(BotPlugin):
         :param mess: Errbot message object
         '''
         configs = self.get_config_files()
-        if len(configs.keys()) == 1:
+        if len(configs) == 1:
             # there is only one project, so auto-select it
-            self.set_config(mess, list(configs.keys())[0])
+            self.set_config(mess, list(configs)[0])
 
         if self.USER_CONF.get(mess.frm.person):
             self.send(mess.frm,
@@ -66,10 +67,16 @@ class Openstack(BotPlugin):
             match = reg.match(line)
             if match:
                 var = match.group('name')
-                val = match.group('value')
+                val = match.group('value').strip('"').strip('\'')
                 if var in self.OS_ATTRS:
+                    # get corresponding arg name
                     key = dict(zip(self.OS_ATTRS, self.OS_ARGS)).get(var)
-                    result[key] = val.strip('"').strip('\'')
+                    # special case for insecure, which must be bool
+                    if key == 'insecure':
+                        val = False if val in ('False', 'false') else True
+
+                    result[key] = val
+
         return result
 
     def get_config_files(self):
@@ -135,6 +142,7 @@ class Openstack(BotPlugin):
         pt.align = 'l'
 
         for vm in vms:
+            network = None
             for key, val in vm.networks.items():
                 network = '{}: {}'.format(key, ', '.join(val))
 
