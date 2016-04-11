@@ -12,12 +12,14 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
+import glob
+import os
+import re
+
 from errbot import BotPlugin, botcmd, arg_botcmd
 from novaclient.client import Client
 from prettytable import PrettyTable
-import os
-import glob
-import re
+
 
 CONFIG_DIR = os.path.expanduser('~/.nova')
 
@@ -27,15 +29,20 @@ class Openstack(BotPlugin):
 
     This module is designed to be similar to using the nova CLI tool.
     '''
-    OS_ARGS = ['username', 'api_key', 'auth_url', 'project_id', 'insecure']
-    OS_ATTRS = ['OS_USERNAME', 'OS_PASSWORD', 'OS_AUTH_URL', 'OS_TENANT_NAME',
-                'NOVACLIENT_INSECURE']
+    VAR_TO_ARG = {
+        'OS_USERNAME': 'username',
+        'OS_PASSWORD': 'api_key',
+        'OS_AUTH_URL': 'auth_url',
+        'OS_TENANT_NAME': 'project_id',
+        'NOVACLIENT_INSECURE': 'insecure'
+    }
     OS_AUTH = {'version': 2}
     USER_CONF = {}
 
     def check_config(self, mess):
-        '''Check to see if the user has selected a project. If there is only
-        one project, it will be selected automatically
+        '''Check to see if the user has selected a project.
+
+        If there is only one project, it will be selected automatically.
 
         :param mess: Errbot message object
         '''
@@ -45,10 +52,9 @@ class Openstack(BotPlugin):
             self.set_config(mess, list(configs)[0])
 
         if self.USER_CONF.get(mess.frm.person):
-            self.send(mess.frm,
-                      '/me Openstack project: {}'
-                      .format(self.USER_CONF[mess.frm.person]['project_id']),
-                      message_type=mess.type)
+            project_id = self.USER_CONF[mess.frm.person]['project_id']
+            message = '/me Openstack project: {}'.format(project_id)
+            self.send(mess.frm, message, message_type=mess.type)
         else:
             raise Exception('You have not selected a project. Run "nova '
                             'project list" to see a list of available '
@@ -58,71 +64,74 @@ class Openstack(BotPlugin):
     def read_config_file(self, config_file):
         '''read contents of config file into a dict of key-> val pairs
 
-        :param config_file: name of openrc config file
-        :returns: dinctionary of configuration items
+        :param str config_file: name of openrc config file
+        :return: configuration key-values
+        :rtype: dict
         '''
-        result = {}
-        reg = re.compile('export (?P<name>\w+)(\=(?P<value>.+))*')
-        for line in open(os.path.join(CONFIG_DIR, config_file)):
-            match = reg.match(line)
-            if match:
-                var = match.group('name')
-                val = match.group('value').strip('"').strip('\'')
-                if var in self.OS_ATTRS:
-                    # get corresponding arg name
-                    key = dict(zip(self.OS_ATTRS, self.OS_ARGS)).get(var)
-                    # special case for insecure, which must be bool
-                    if key == 'insecure':
-                        val = False if val in ('False', 'false') else True
+        with open(os.path.join(CONFIG_DIR, config_file)) as f:
+            lines = f.read().splitlines()  # drop newline chars
 
-                    result[key] = val
+        reg = re.compile(r'export (?P<var>\w+)(?:=(?P<value>.+))*')
+        result = {}
+        for line in lines:
+            try:
+                var, value = reg.match(line).groups()
+                arg = self.VAR_TO_ARG[var]
+            except (KeyError, AttributeError):
+                pass
+            else:
+                value = value.strip('\'"')  # unquote the value
+                if arg == 'insecure':
+                    value = False if value in ('False', 'false') else True
+                result[arg] = value
 
         return result
 
     def get_config_files(self):
         '''Get openrc config(s)
 
-        :returns: result: dictionary of project name as key and config path as
-                          value
+        :return: config paths by project name
+        :rtype: dict
         '''
-        result = {}
-        conf = glob.glob(os.path.join(CONFIG_DIR, '*-openrc.sh'))
-        if len(conf) < 1:
-            raise Exception('No openrc files found at: {}'
-                            .format(os.path.join(CONFIG_DIR, '*-openrc.sh')))
+        search_path = os.path.join(CONFIG_DIR, '*-openrc.sh')
+        configs = glob.glob(search_path)
+        if not configs:
+            raise Exception('No openrc files found at: {}'.format(search_path))
 
-        for c in conf:
-            contents = self.read_config_file(c)
-            result[contents['project_id']] = c
+        result = {}
+        for config in configs:
+            contents = self.read_config_file(config)
+            result[contents['project_id']] = config
 
         return result
 
     def set_config(self, mess, project_name):
-        '''Sets config to selected openrc file
+        '''Sets config to selected openrc file.
 
         :param mess: Errbot message object
-        :param project_name: name of openstack project
+        :param str project_name: name of openstack project
         '''
-        config_file = self.get_config_files()[project_name]
-        self.USER_CONF[mess.frm.person] = self.OS_AUTH.copy()
-        self.USER_CONF[mess.frm.person].update(
-                self.read_config_file(config_file)
-            )
-
+        config_file = self.get_config_files().get(project_name)
+        if config_file:
+            config = self.read_config_file(config_file)
+            self.USER_CONF[mess.frm.person] = dict(self.OS_AUTH, **config)
+            message = '/me Selected Openstack project: {} for {}'
+        else:
+            message = '/me No such project {!r}'.format(project_name)
         self.send(mess.frm,
-                  '/me Selected Openstack project: {} for {}'
-                  .format(project_name, mess.frm.person),
+                  message.format(project_name, mess.frm.person),
                   message_type=mess.type)
 
     @botcmd(split_args_with=None)
     def nova_project(self, mess, args):
         '''nova project list/set'''
-        if len(args) == 0:
+        if not args:
             self.check_config(mess)
-            return ('Current project: {}'
-                    .format(self.USER_CONF[mess.frm.person]['project_id']))
+            project_id = self.USER_CONF[mess.frm.person]['project_id']
+            return 'Current project: {}'.format(project_id)
+
         if args[0] == 'list':
-            return '\n'.join([k for k in self.get_config_files().keys()])
+            return '\n'.join(self.get_config_files())
         elif args[0] == 'set':
             self.set_config(mess, args[1])
 
@@ -130,10 +139,9 @@ class Openstack(BotPlugin):
     def nova_list(self, mess, args):
         '''List VMs'''
         self.check_config(mess)
-        self.send(mess.frm,
-                  '/me is getting the list of VMs for project {}'
-                  .format(self.USER_CONF[mess.frm.person]['project_id']),
-                  message_type=mess.type)
+        message = '/me is getting the list of VMs for project {}'
+        project_id = self.USER_CONF[mess.frm.person]['project_id']
+        self.send(mess.frm, message.format(project_id), message_type=mess.type)
 
         nova_client = Client(**self.USER_CONF[mess.frm.person])
         vms = nova_client.servers.list()
@@ -141,12 +149,14 @@ class Openstack(BotPlugin):
         pt = PrettyTable(['ID', 'Name', 'Status', 'Networks'])
         pt.align = 'l'
 
+        network = '{}: {}'.format
+        csv = ', '.join
         for vm in vms:
-            network = None
-            for key, val in vm.networks.items():
-                network = '{}: {}'.format(key, ', '.join(val))
-
-            pt.add_row([vm.id, vm.name, vm.status, network])
+            networks = []
+            for name, ips in vm.networks.items():
+                networks.append(network(name, csv(ips)))
+            all_networks = '; '.join(networks)
+            pt.add_row([vm.id, vm.name, vm.status, all_networks])
 
         return '/code {}'.format(pt)
 
@@ -155,10 +165,10 @@ class Openstack(BotPlugin):
     def nova_show(self, mess, vm):
         '''Show VM details'''
         self.check_config(mess)
-        self.send(mess.frm,
-                  '/me is getting the list of VMs for project {}'
-                  .format(self.USER_CONF[mess.frm.person]['project_id']),
-                  message_type=mess.type)
+        message = '/me is getting the list of VMs for project {}'
+        project_id = self.USER_CONF[mess.frm.person]['project_id']
+        self.send(mess.frm, message.format(project_id), message_type=mess.type)
+
         nova_client = Client(**self.USER_CONF[mess.frm.person])
         vm = nova_client.servers.get(vm)
 
@@ -184,33 +194,32 @@ class Openstack(BotPlugin):
 
         return '/code {}'.format(pt)
 
-    def get_image(self, mess, image_id):
-        '''get the image name from the ID
-
-        :param mess: Errbot message object
-        :param image_id: id of openstack image
-        :returns name: name of image
-        '''
+    def _get_name_from_id(self, mess, type_, id_):
+        # Return the name of a nova client resource for a given person given
+        # the type and id of the resource.
         try:
             nova_client = Client(**self.USER_CONF[mess.frm.person])
-            image = nova_client.images.get(image_id)
-            name = image.name
+            resource = getattr(nova_client, type_)[id_]
+            return resource.name
         except Exception:
-            name = 'Error fetching name'
-        return name
+            return 'Error fetching name'
+
+    def get_image(self, mess, image_id):
+        '''Get the image name from the ID
+
+        :param mess: Errbot message object
+        :param str image_id: id of openstack image
+        :return: name of image
+        :rtype: str
+        '''
+        return self._get_name_from_id(mess, 'images', image_id)
 
     def get_flavor(self, mess, flavor_id):
-        '''get the flavor name from the ID
+        '''Get the flavor name from the ID
 
         :param mess: Errbot message object
-        :param flavor_id: id of openstack image
-        :returns name: name of image
+        :param str flavor_id: id of openstack image
+        :return: name of image
+        :rtype: str
         '''
-        try:
-            nova_client = Client(**self.USER_CONF[mess.frm.person])
-            flavor = nova_client.flavors.get(flavor_id)
-            name = flavor.name
-        except Exception:
-            name = 'Error fetching name'
-        return name
-
+        return self._get_name_from_id(mess, 'flavors', flavor_id)

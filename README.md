@@ -9,16 +9,16 @@ Available commands for nova
 
 Available commands for Openstack
 
-• !nova list - List VMs
-• !nova project - nova project list/set
-• !nova show - usage: nova_show [-h] vm
+ * `!nova list` - List VMs
+ * `!nova project` - nova project list/set
+ * `!nova show` - usage: nova_show [-h] vm
 
 Requirements
 ------------
 
-Python ~> 3.4
-python-novaclient ~> 2.31.0
-prettytable ~> 0.7.2
+ - Python ~> 3.4
+ - python-novaclient ~> 2.31.0
+ - prettytable ~> 0.7.2
 
 
 Installation
